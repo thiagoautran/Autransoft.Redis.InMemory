@@ -2,29 +2,26 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Autransoft.Redis.InMemory.Lib.Entities;
 using StackExchange.Redis;
 using StackExchange.Redis.Extensions.Core;
 using StackExchange.Redis.Extensions.Core.Abstractions;
 using StackExchange.Redis.Extensions.Core.Models;
 
-namespace Name
+namespace Autransoft.Redis.InMemory.Lib.Repositories
 {
     public class RedisDatabaseRepository : IRedisDatabase
     {
-        private static Dictionary<string, object> _databaseInMemory;
+        private static Dictionary<string, ValueEntity> _databaseInMemory;
 
-        public static Dictionary<string, object> DatabaseInMemory
+        public static Dictionary<string, ValueEntity> DatabaseInMemory
         {
             get
             {
                 if(_databaseInMemory == null)
-                    _databaseInMemory = new Dictionary<string, object>();
+                    _databaseInMemory = new Dictionary<string, ValueEntity>();
 
                 return _databaseInMemory;
-            }
-            set
-            {
-                _databaseInMemory = value;
             }
         }
 
@@ -40,7 +37,11 @@ namespace Name
                 return false;
 
             foreach(var item in items)
-                _databaseInMemory.Add(item.Item1, item.Item2);
+                DatabaseInMemory.Add(item.Item1, new ValueEntity
+                { 
+                    Obj = item.Item2,
+                    Tag = new HashSet<string>()
+                });
 
             return true;
         }
@@ -51,7 +52,11 @@ namespace Name
                 return false;
 
             foreach(var item in items)
-                _databaseInMemory.Add(item.Item1, item.Item2);
+                DatabaseInMemory.Add(item.Item1, new ValueEntity
+                { 
+                    Obj = item.Item2,
+                    Tag = new HashSet<string>()
+                });
 
             return true;
         }
@@ -62,7 +67,11 @@ namespace Name
                 return false;
 
             foreach(var item in items)
-                _databaseInMemory.Add(item.Item1, item.Item2);
+                DatabaseInMemory.Add(item.Item1, new ValueEntity
+                { 
+                    Obj = item.Item2,
+                    Tag = new HashSet<string>()
+                });
 
             return true;
         }
@@ -72,7 +81,11 @@ namespace Name
             if(string.IsNullOrEmpty(key) || value == null)
                 return false;
 
-            _databaseInMemory.Add(key, value);
+            DatabaseInMemory.Add(key, new ValueEntity
+            { 
+                Obj = value,
+                Tag = tags
+            });
 
             return true;
         }
@@ -82,7 +95,11 @@ namespace Name
             if(string.IsNullOrEmpty(key) || value == null)
                 return false;
 
-            _databaseInMemory.Add(key, value);
+            DatabaseInMemory.Add(key, new ValueEntity
+            { 
+                Obj = value,
+                Tag = tags
+            });
 
             return true;
         }
@@ -92,36 +109,40 @@ namespace Name
             if(string.IsNullOrEmpty(key) || value == null)
                 return false;
 
-            _databaseInMemory.Add(key, value);
+            DatabaseInMemory.Add(key, new ValueEntity
+            { 
+                Obj = value,
+                Tag = tags
+            });
 
             return true;
         }
 
         public async Task<bool> ExistsAsync(string key, CommandFlags flag = CommandFlags.None)
         {
-            if(_databaseInMemory.Keys == null || _databaseInMemory.Keys.Count == 0 || string.IsNullOrEmpty(key))
+            if(DatabaseInMemory.Keys == null || DatabaseInMemory.Keys.Count == 0 || string.IsNullOrEmpty(key))
                 return false;
 
-            return _databaseInMemory.Keys.Any(keyInMemory => keyInMemory.Trim().ToUpper() == key.Trim().ToUpper());
+            return DatabaseInMemory.Keys.Any(keyInMemory => keyInMemory.Trim().ToUpper() == key.Trim().ToUpper());
         }
 
-        public async Task FlushDbAsync() => _databaseInMemory = new Dictionary<string, object>();
+        public async Task FlushDbAsync() => _databaseInMemory = new Dictionary<string, ValueEntity>();
 
         public async Task<IDictionary<string, T>> GetAllAsync<T>(IEnumerable<string> keys)
         {
             var listT = new Dictionary<string, T>();
 
-            if(_databaseInMemory == null)
+            if(DatabaseInMemory == null)
                 return new Dictionary<string, T>();
 
-            foreach(var key in keys.Where(key => _databaseInMemory.Keys.Any(keyInMemory => keyInMemory == key)))
+            foreach(var key in keys.Where(key => DatabaseInMemory.Keys.Any(keyInMemory => keyInMemory == key)))
             {
-                if(_databaseInMemory[key] != null)
+                if(DatabaseInMemory[key] != null && DatabaseInMemory[key].Obj != null)
                 {
-                    var value = (T)_databaseInMemory[key];
+                    var value = (T)DatabaseInMemory[key].Obj;
 
                     if(value != null)
-                        listT.Add(key, (T)_databaseInMemory[key]);
+                        listT.Add(key, (T)DatabaseInMemory[key].Obj);
                 }
             }
 
@@ -132,17 +153,17 @@ namespace Name
         {
             var listT = new Dictionary<string, T>();
 
-            if(_databaseInMemory == null)
+            if(DatabaseInMemory == null)
                 return new Dictionary<string, T>();
 
-            foreach(var key in keys.Where(key => _databaseInMemory.Keys.Any(keyInMemory => keyInMemory == key)))
+            foreach(var key in keys.Where(key => DatabaseInMemory.Keys.Any(keyInMemory => keyInMemory == key)))
             {
-                if(_databaseInMemory[key] != null)
+                if(DatabaseInMemory[key] != null && DatabaseInMemory[key].Obj != null)
                 {
-                    var value = (T)_databaseInMemory[key];
+                    var value = (T)DatabaseInMemory[key].Obj;
 
                     if(value != null)
-                        listT.Add(key, (T)_databaseInMemory[key]);
+                        listT.Add(key, (T)DatabaseInMemory[key].Obj);
                 }
             }
 
@@ -151,19 +172,19 @@ namespace Name
 
         public async Task<IDictionary<string, T>> GetAllAsync<T>(IEnumerable<string> keys, TimeSpan expiresIn)
         {
-            if(_databaseInMemory == null || _databaseInMemory.Count == 0 || _databaseInMemory.Keys.Count == 0)
+            if(DatabaseInMemory == null || DatabaseInMemory.Count == 0 || DatabaseInMemory.Keys.Count == 0)
                 return new Dictionary<string, T>();
 
             var listT = new Dictionary<string, T>();
 
-            foreach(var key in keys.Where(key => _databaseInMemory.Keys.Any(keyInMemory => keyInMemory == key)))
+            foreach(var key in keys.Where(key => DatabaseInMemory.Keys.Any(keyInMemory => keyInMemory == key)))
             {
-                if(_databaseInMemory[key] != null)
+                if(DatabaseInMemory[key] != null && DatabaseInMemory[key].Obj != null)
                 {
-                    var value = (T)_databaseInMemory[key];
+                    var value = (T)DatabaseInMemory[key].Obj;
 
                     if(value != null)
-                        listT.Add(key, (T)_databaseInMemory[key]);
+                        listT.Add(key, (T)DatabaseInMemory[key].Obj);
                 }
             }
 
@@ -172,38 +193,38 @@ namespace Name
 
         public async Task<T> GetAsync<T>(string key, CommandFlags flag = CommandFlags.None)
         {
-            if(_databaseInMemory == null || _databaseInMemory.Count == 0 || _databaseInMemory.Keys.Count == 0 || string.IsNullOrEmpty(key))
+            if(DatabaseInMemory == null || DatabaseInMemory.Count == 0 || DatabaseInMemory.Keys.Count == 0 || string.IsNullOrEmpty(key))
                 return default(T);
 
-            var keyMemory = _databaseInMemory.Keys.FirstOrDefault(keyInMemory => keyInMemory == key);
-            if(_databaseInMemory[key] == null) 
+            var keyMemory = DatabaseInMemory.Keys.FirstOrDefault(keyInMemory => keyInMemory == key);
+            if(DatabaseInMemory[key] == null && DatabaseInMemory[key].Obj == null) 
                 return default(T);
 
-            return (T)_databaseInMemory[key];
+            return (T)DatabaseInMemory[key].Obj;
         }
 
         public async Task<T> GetAsync<T>(string key, DateTimeOffset expiresAt, CommandFlags flag = CommandFlags.None)
         {
-            if(_databaseInMemory == null || _databaseInMemory.Count == 0 || _databaseInMemory.Keys.Count == 0 || string.IsNullOrEmpty(key))
+            if(DatabaseInMemory == null || DatabaseInMemory.Count == 0 || DatabaseInMemory.Keys.Count == 0 || string.IsNullOrEmpty(key))
                 return default(T);
 
-            var keyMemory = _databaseInMemory.Keys.FirstOrDefault(keyInMemory => keyInMemory == key);
-            if(_databaseInMemory[key] == null) 
+            var keyMemory = DatabaseInMemory.Keys.FirstOrDefault(keyInMemory => keyInMemory == key);
+            if(DatabaseInMemory[key] == null && DatabaseInMemory[key].Obj == null) 
                 return default(T);
 
-            return (T)_databaseInMemory[key];
+            return (T)DatabaseInMemory[key].Obj;
         }
 
         public async Task<T> GetAsync<T>(string key, TimeSpan expiresIn, CommandFlags flag = CommandFlags.None)
         {
-            if(_databaseInMemory == null || _databaseInMemory.Count == 0 || _databaseInMemory.Keys.Count == 0 || string.IsNullOrEmpty(key))
+            if(DatabaseInMemory == null || DatabaseInMemory.Count == 0 || DatabaseInMemory.Keys.Count == 0 || string.IsNullOrEmpty(key))
                 return default(T);
 
-            var keyMemory = _databaseInMemory.Keys.FirstOrDefault(keyInMemory => keyInMemory == key);
-            if(_databaseInMemory[key] == null) 
+            var keyMemory = DatabaseInMemory.Keys.FirstOrDefault(keyInMemory => keyInMemory == key);
+            if(DatabaseInMemory[key] == null && DatabaseInMemory[key].Obj == null) 
                 return default(T);
 
-            return (T)_databaseInMemory[key];
+            return (T)DatabaseInMemory[key].Obj;
         }
 
         public Task<IEnumerable<T>> GetByTagAsync<T>(string tag, CommandFlags commandFlags = CommandFlags.None)
@@ -316,15 +337,15 @@ namespace Name
             if(keys == null || keys.Count() == 0)
                 return default(long);
 
-            if(_databaseInMemory == null || _databaseInMemory.Count == 0 || _databaseInMemory.Keys.Count == 0)
+            if(DatabaseInMemory == null || DatabaseInMemory.Count == 0 || DatabaseInMemory.Keys.Count == 0)
                 return default(long);
 
             foreach(var key in keys)
             {
-                if(string.IsNullOrEmpty(key) || _databaseInMemory[key] == null || !_databaseInMemory.Keys.Any(keyInMemory => keyInMemory == key))
+                if(string.IsNullOrEmpty(key) || DatabaseInMemory[key] == null || !DatabaseInMemory.Keys.Any(keyInMemory => keyInMemory == key))
                     continue;
 
-                _databaseInMemory.Remove(key);
+                DatabaseInMemory.Remove(key);
             }
 
             return default(long);
@@ -335,13 +356,13 @@ namespace Name
             if(string.IsNullOrEmpty(key))
                 return false;
 
-            if(_databaseInMemory == null || _databaseInMemory.Count == 0 || _databaseInMemory.Keys.Count == 0)
+            if(DatabaseInMemory == null || DatabaseInMemory.Count == 0 || DatabaseInMemory.Keys.Count == 0)
                 return false;
 
-            if(_databaseInMemory[key] == null || !_databaseInMemory.Keys.Any(keyInMemory => keyInMemory == key))
+            if(DatabaseInMemory[key] == null || !DatabaseInMemory.Keys.Any(keyInMemory => keyInMemory == key))
                 return false;
 
-            _databaseInMemory.Remove(key);
+            DatabaseInMemory.Remove(key);
 
             return true;
         }
@@ -351,19 +372,43 @@ namespace Name
             throw new NotImplementedException();
         }
 
-        public Task<bool> ReplaceAsync<T>(string key, T value, When when = When.Always, CommandFlags flag = CommandFlags.None)
+        public async Task<bool> ReplaceAsync<T>(string key, T value, When when = When.Always, CommandFlags flag = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            if(string.IsNullOrEmpty(key) || value == null)
+                return false;
+
+            if(DatabaseInMemory == null || DatabaseInMemory.Count() == 0 || DatabaseInMemory.Keys.Count() == 0 || !DatabaseInMemory.Keys.Any(keyInMemory => keyInMemory == key))
+                return false;
+
+            DatabaseInMemory[key].Obj = value;
+
+            return true;
         }
 
-        public Task<bool> ReplaceAsync<T>(string key, T value, DateTimeOffset expiresAt, When when = When.Always, CommandFlags flag = CommandFlags.None)
+        public async Task<bool> ReplaceAsync<T>(string key, T value, DateTimeOffset expiresAt, When when = When.Always, CommandFlags flag = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            if(string.IsNullOrEmpty(key) || value == null)
+                return false;
+
+            if(DatabaseInMemory == null || DatabaseInMemory.Count() == 0 || DatabaseInMemory.Keys.Count() == 0 || !DatabaseInMemory.Keys.Any(keyInMemory => keyInMemory == key))
+                return false;
+
+            DatabaseInMemory[key].Obj = value;
+
+            return true;
         }
 
-        public Task<bool> ReplaceAsync<T>(string key, T value, TimeSpan expiresIn, When when = When.Always, CommandFlags flag = CommandFlags.None)
+        public async Task<bool> ReplaceAsync<T>(string key, T value, TimeSpan expiresIn, When when = When.Always, CommandFlags flag = CommandFlags.None)
         {
-            throw new NotImplementedException();
+            if(string.IsNullOrEmpty(key) || value == null)
+                return false;
+
+            if(DatabaseInMemory == null || DatabaseInMemory.Count() == 0 || DatabaseInMemory.Keys.Count() == 0 || !DatabaseInMemory.Keys.Any(keyInMemory => keyInMemory == key))
+                return false;
+
+            DatabaseInMemory[key].Obj = value;
+
+            return true;
         }
 
         public Task SaveAsync(SaveType saveType, CommandFlags flag = CommandFlags.None)
@@ -371,9 +416,28 @@ namespace Name
             throw new NotImplementedException();
         }
 
-        public Task<IEnumerable<string>> SearchKeysAsync(string pattern)
+        public async Task<IEnumerable<string>> SearchKeysAsync(string pattern)
         {
-            throw new NotImplementedException();
+            if(string.IsNullOrEmpty(pattern))
+                return default(IEnumerable<string>);
+
+            if(DatabaseInMemory == null || DatabaseInMemory.Count() == 0 || DatabaseInMemory.Keys.Count() == 0)
+                return default(IEnumerable<string>);
+
+            return DatabaseInMemory.Keys.Where
+            (
+                keyInMemory => 
+                {
+                    var exist = true;
+
+                    foreach(var caracter in pattern.Split('*'))
+                        if(exist && !keyInMemory.Contains(caracter))
+                            exist = false;
+
+                    return exist;
+                }
+            )
+            .ToList();
         }
 
         public Task<long> SetAddAllAsync<T>(string key, CommandFlags flag = CommandFlags.None, params T[] items) where T : class
