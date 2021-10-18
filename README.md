@@ -1,0 +1,1 @@
+# Autransoft.Redis.InMemory
