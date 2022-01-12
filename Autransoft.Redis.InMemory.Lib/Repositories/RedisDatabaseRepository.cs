@@ -25,6 +25,8 @@ namespace Autransoft.Redis.InMemory.Lib.Repositories
             }
         }
 
+        public void SetDatabase(Dictionary<string, ValueEntity> databaseInMemory) => _databaseInMemory = databaseInMemory;
+
         public static void Clean() => _databaseInMemory = null;
 
         public IDatabase Database => throw new NotImplementedException();
